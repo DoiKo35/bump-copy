@@ -1,0 +1,38 @@
+name: Build TrollStore IPA
+
+on:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install dependencies
+        run: |
+          npm install
+          npx cap sync ios
+          
+      - name: Build unsigned iOS app
+        run: |
+          cd ios/App
+          # Собираем без сертификатов (специально для TrollStore)
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath $PWD/build/App.xcarchive archive CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          
+          # Пакуем в IPA
+          mkdir -p Payload
+          mv build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -r ../../Bump.ipa Payload
+          
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bump-TrollStore
+          path: Bump.ipa

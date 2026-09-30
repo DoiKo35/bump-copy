@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bump TrollStore</title>
+    <!-- Скрипт Capacitor подтянется при сборке -->
+    <script src="capacitor.js"></script>
+    <!-- Берем клиент сокетов с CDN -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #1c1c1e; color: white; }
+        input, button { width: 100%; padding: 15px; margin-top: 10px; border-radius: 12px; border: none; font-size: 18px; box-sizing: border-box; }
+        button { background: #0a84ff; color: white; font-weight: bold; }
+        ul { list-style: none; padding: 0; }
+        li { background: #2c2c2e; margin-top: 10px; padding: 15px; border-radius: 12px; }
+    </style>
+</head>
+<body>
+    <h2>Радар</h2>
+    
+    <input id="username" type="text" placeholder="Твое имя (например, iPhone X)" value="iPhone X">
+    <button id="findBtn">Обновить позицию</button>
+    
+    <h3>Кто рядом:</h3>
+    <ul id="usersList"><li>Нажми кнопку...</li></ul>
+
+    <script>
+        // ВПИШИ СЮДА СВОЙ IP ИЛИ PINGGY-ССЫЛКУ (с портом!)
+        const SERVER_URL = "http://10.0.0.45:3000"; 
+        const socket = io(SERVER_URL);
+
+        document.getElementById('findBtn').onclick = async () => {
+            try {
+                // Используем нативный плагин Capacitor вместо браузерного
+                const { Geolocation } = capacitorExports;
+                
+                // Запрашиваем права у iOS
+                await Geolocation.requestPermissions();
+                
+                // Получаем точные GPS данные
+                const coordinates = await Geolocation.getCurrentPosition();
+                
+                const lat = coordinates.coords.latitude;
+                const lng = coordinates.coords.longitude;
+                const name = document.getElementById('username').value;
+                
+                socket.emit('update_location', { username: name, lat, lng });
+                document.getElementById('usersList').innerHTML = '<li>Ищем...</li>';
+            } catch (err) {
+                alert("Ошибка: " + err.message);
+            }
+        };
+
+        socket.on('nearby_users', (users) => {
+            const list = document.getElementById('usersList');
+            list.innerHTML = ''; 
+            
+            if (users.length === 0) list.innerHTML = '<li>Никого нет рядом :(</li>';
+            
+            users.forEach(u => {
+                list.innerHTML += `<li>📍 ${u.username} — ${u.distance} метров</li>`;
+            });
+        });
+    </script>
+</body>
+</html>
